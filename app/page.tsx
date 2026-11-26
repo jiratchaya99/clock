@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   Sun,
   Moon,
@@ -15,35 +16,107 @@ import {
 } from "lucide-react";
 
 export default function WigggleUIPage() {
-  // State สำหรับ Stopwatch Widget (แถวบน ขวาสุด)
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(
+    null,
+  );
+  const [isLightTheme, setIsLightTheme] = useState(false);
+  const stopwatchStartedAt = useRef<number | null>(null);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setTime((prev) => prev + 10);
-      }, 10);
+    const updateTime = () => setNow(new Date());
+    updateTime();
+    const interval = window.setInterval(updateTime, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const startedAt = stopwatchStartedAt.current;
+    if (!isRunning || startedAt === null) {
+      return;
     }
-    return () => clearInterval(interval);
+
+    const interval = window.setInterval(() => {
+      setTime(performance.now() - startedAt);
+    }, 25);
+    return () => window.clearInterval(interval);
   }, [isRunning]);
 
   const formatStopwatch = (ms: number) => {
-    const seconds = Math.floor((ms / 1000) % 60);
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
     const centiseconds = Math.floor((ms % 1000) / 10);
-    return `${seconds.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
   };
 
+  const calendarDate = now
+    ? new Date(
+        now.getFullYear(),
+        now.getMonth() + calendarMonthOffset,
+        1,
+      )
+    : null;
+  const daysInCalendarMonth = calendarDate
+    ? new Date(
+        calendarDate.getFullYear(),
+        calendarDate.getMonth() + 1,
+        0,
+      ).getDate()
+    : 0;
+  const calendarStartDay = calendarDate?.getDay() ?? 0;
+  const isCurrentCalendarMonth =
+    calendarDate !== null &&
+    now !== null &&
+    calendarDate.getFullYear() === now.getFullYear() &&
+    calendarDate.getMonth() === now.getMonth();
+  const formatWorldTime = (date: Date | null, timeZone: string) =>
+    date
+      ? date.toLocaleTimeString("en-US", {
+          timeZone,
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "--:--";
+  const isDaytimeIn = (date: Date | null, timeZone: string) => {
+    if (!date) {
+      return false;
+    }
+
+    const hour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        hour: "numeric",
+        hourCycle: "h23",
+      }).format(date),
+    );
+    return hour >= 6 && hour < 18;
+  };
+  const mumbaiIsDaytime = isDaytimeIn(now, "Asia/Kolkata");
+  const vancouverIsDaytime = isDaytimeIn(now, "America/Vancouver");
+  const hourHandRotation = now
+    ? ((now.getHours() % 12) + now.getMinutes() / 60) * 30
+    : 0;
+  const minuteHandRotation = now
+    ? (now.getMinutes() + now.getSeconds() / 60) * 6
+    : 0;
+  const secondHandRotation = now ? now.getSeconds() * 6 : 0;
+
   return (
-    <div className="min-h-screen flex flex-col justify-between pb-16">
+    <div
+      data-theme={isLightTheme ? "light" : "dark"}
+      className="min-h-screen flex flex-col justify-between pb-16"
+    >
       {/* ==================== NAVBAR ==================== */}
       <header className="w-full max-w-[1280px] mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <a href="#" className="flex items-center gap-2.5 font-bold text-lg tracking-tight">
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight">
             <div className="w-5 h-5 rounded-[5px] border-2 border-white flex items-center justify-center" />
             <span>Wigggle UI</span>
-          </a>
+          </Link>
           <nav className="hidden sm:flex items-center gap-6 text-sm text-zinc-400">
             <a href="#widgets" className="hover:text-white transition-colors">
               Widgets
@@ -62,10 +135,15 @@ export default function WigggleUIPage() {
             <span>Give us a Star</span>
           </a>
           <button
-            aria-label="Toggle Theme"
+            aria-label={`Switch to ${isLightTheme ? "dark" : "light"} theme`}
+            onClick={() => setIsLightTheme((current) => !current)}
             className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors"
           >
-            <Sun className="w-4 h-4" />
+            {isLightTheme ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4" />
+            )}
           </button>
         </div>
       </header>
@@ -80,9 +158,12 @@ export default function WigggleUIPage() {
         </p>
 
         <div className="mt-8 flex items-center justify-center gap-4">
-          <button className="bg-[#ededed] hover:bg-white text-black font-semibold text-sm px-6 py-2.5 rounded-lg transition-all shadow-sm">
+          <a
+            href="#widgets"
+            className="bg-[#ededed] hover:bg-white text-black font-semibold text-sm px-6 py-2.5 rounded-lg transition-all shadow-sm"
+          >
             Get Started
-          </button>
+          </a>
           <a
             href="#widgets"
             className="text-zinc-300 hover:text-white font-medium text-sm px-5 py-2.5 rounded-lg transition-colors"
@@ -99,11 +180,15 @@ export default function WigggleUIPage() {
           {/* 1. Date Card Widget */}
           <div className="aspect-square bg-[#111113] border border-[#222225] rounded-[28px] p-5 flex flex-col items-center justify-center select-none hover:border-zinc-700 transition-colors">
             <div className="text-lg font-semibold tracking-wide mb-1">
-              <span className="text-[#ef4444]">Tue</span>{" "}
-              <span className="text-zinc-200">Nov</span>
+              <span className="text-[#ef4444]">
+                {now?.toLocaleDateString("en-US", { weekday: "short" }) ?? "--"}
+              </span>{" "}
+              <span className="text-zinc-200">
+                {now?.toLocaleDateString("en-US", { month: "short" }) ?? "---"}
+              </span>
             </div>
             <div className="text-[76px] leading-none font-bold tracking-tight text-white">
-              04
+              {now?.toLocaleDateString("en-US", { day: "2-digit" }) ?? "--"}
             </div>
           </div>
 
@@ -166,17 +251,17 @@ export default function WigggleUIPage() {
               {/* Hour Hand */}
               <div
                 className="absolute w-1.5 h-10 bg-white rounded-full origin-bottom bottom-1/2"
-                style={{ transform: "rotate(122deg)" }}
+                style={{ transform: `rotate(${hourHandRotation}deg)` }}
               />
               {/* Minute Hand */}
               <div
                 className="absolute w-1 h-14 bg-zinc-300 rounded-full origin-bottom bottom-1/2"
-                style={{ transform: "rotate(305deg)" }}
+                style={{ transform: `rotate(${minuteHandRotation}deg)` }}
               />
               {/* Second Hand */}
               <div
                 className="absolute w-[1.5px] h-16 bg-red-500 rounded-full origin-bottom bottom-1/2"
-                style={{ transform: "rotate(316deg)" }}
+                style={{ transform: `rotate(${secondHandRotation}deg)` }}
               />
               {/* Center Dot */}
               <div className="w-2.5 h-2.5 rounded-full bg-zinc-400 border-2 border-[#111113] z-10" />
@@ -260,9 +345,9 @@ export default function WigggleUIPage() {
               {/* Needle */}
               <div
                 className="absolute w-[1.5px] h-12 bg-red-500 origin-bottom bottom-1/2 transition-transform duration-75"
-                style={{ transform: `rotate(${(time / 1000) * 6}deg)` }}
+                style={{ transform: `rotate(${((time / 1000) % 60) * 6}deg)` }}
               />
-              <div className="bg-[#111113] px-1.5 py-0.5 rounded text-sm font-bold tracking-wider text-white z-10 mt-6">
+              <div className="bg-[#111113] px-1.5 py-0.5 rounded text-xs font-bold tracking-wider text-white z-10 mt-6">
                 {formatStopwatch(time)}
               </div>
             </div>
@@ -273,15 +358,28 @@ export default function WigggleUIPage() {
                 onClick={() => {
                   setIsRunning(false);
                   setTime(0);
+                  stopwatchStartedAt.current = null;
                 }}
-                aria-label="Reset"
+                aria-label="Reset stopwatch"
                 className="w-7 h-7 rounded-full bg-zinc-800/90 hover:bg-zinc-700 flex items-center justify-center text-zinc-300 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => setIsRunning(!isRunning)}
-                aria-label="Start or Pause"
+                onClick={() => {
+                  if (isRunning) {
+                    if (stopwatchStartedAt.current !== null) {
+                      setTime(performance.now() - stopwatchStartedAt.current);
+                    }
+                    stopwatchStartedAt.current = null;
+                    setIsRunning(false);
+                    return;
+                  }
+
+                  stopwatchStartedAt.current = performance.now() - time;
+                  setIsRunning(true);
+                }}
+                aria-label={isRunning ? "Pause stopwatch" : "Start stopwatch"}
                 className="w-7 h-7 rounded-full bg-white hover:bg-zinc-200 flex items-center justify-center text-black transition-colors"
               >
                 {isRunning ? (
@@ -386,9 +484,15 @@ export default function WigggleUIPage() {
             <div>
               <div className="flex items-center justify-between text-xs text-zinc-400">
                 <span>Mumbai</span>
-                <Sun className="w-4 h-4 text-zinc-200" />
+                {mumbaiIsDaytime ? (
+                  <Sun className="w-4 h-4 text-zinc-200" />
+                ) : (
+                  <Moon className="w-4 h-4 text-zinc-200" />
+                )}
               </div>
-              <div className="text-xl font-bold text-white mt-1">8:15 AM</div>
+              <div className="text-xl font-bold text-white mt-1">
+                {formatWorldTime(now, "Asia/Kolkata")}
+              </div>
             </div>
 
             <div className="h-[1px] bg-zinc-800/80 w-full" />
@@ -397,18 +501,49 @@ export default function WigggleUIPage() {
             <div>
               <div className="flex items-center justify-between text-xs text-zinc-400">
                 <span>Vancouver</span>
-                <Moon className="w-4 h-4 text-zinc-200" />
+                {vancouverIsDaytime ? (
+                  <Sun className="w-4 h-4 text-zinc-200" />
+                ) : (
+                  <Moon className="w-4 h-4 text-zinc-200" />
+                )}
               </div>
-              <div className="text-xl font-bold text-white mt-1">6:45 PM</div>
+              <div className="text-xl font-bold text-white mt-1">
+                {formatWorldTime(now, "America/Vancouver")}
+              </div>
             </div>
           </div>
 
-          {/* 11. Mini Calendar Widget (Nov 2025) */}
+          {/* 11. Mini Calendar Widget */}
           <div className="aspect-square bg-[#111113] border border-[#222225] rounded-[28px] p-4 flex flex-col justify-between select-none hover:border-zinc-700 transition-colors">
             <div className="flex items-center justify-between px-1">
-              <ChevronLeft className="w-3.5 h-3.5 text-zinc-400 cursor-pointer hover:text-white" />
-              <span className="text-xs font-bold text-white">Nov 2025</span>
-              <ChevronRight className="w-3.5 h-3.5 text-zinc-400 cursor-pointer hover:text-white" />
+              <button
+                type="button"
+                aria-label="Previous month"
+                onClick={() => {
+                  setCalendarMonthOffset((month) => month - 1);
+                  setSelectedCalendarDate(null);
+                }}
+                className="text-zinc-400 hover:text-white"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xs font-bold text-white">
+                {calendarDate?.toLocaleDateString("en-US", {
+                  month: "short",
+                  year: "numeric",
+                }) ?? "---"}
+              </span>
+              <button
+                type="button"
+                aria-label="Next month"
+                onClick={() => {
+                  setCalendarMonthOffset((month) => month + 1);
+                  setSelectedCalendarDate(null);
+                }}
+                className="text-zinc-400 hover:text-white"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             <div className="grid grid-cols-7 gap-y-1 text-center text-[9px] mt-1">
@@ -418,24 +553,41 @@ export default function WigggleUIPage() {
                 </span>
               ))}
 
-              {/* Empty offset for Nov 1, 2025 (Saturday) */}
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: calendarStartDay }).map((_, i) => (
                 <span key={`empty-${i}`} />
               ))}
 
-              {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
-                const isSelected = day === 4;
+              {Array.from({ length: daysInCalendarMonth }, (_, i) => i + 1).map((day) => {
+                const isSelected = selectedCalendarDate
+                  ? selectedCalendarDate.getFullYear() === calendarDate?.getFullYear() &&
+                    selectedCalendarDate.getMonth() === calendarDate?.getMonth() &&
+                    selectedCalendarDate.getDate() === day
+                  : isCurrentCalendarMonth && day === now?.getDate();
                 return (
-                  <span
+                  <button
+                    type="button"
                     key={day}
+                    aria-label={calendarDate ? `${calendarDate.toLocaleDateString("en-US", { month: "long" })} ${day}` : `Day ${day}`}
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      if (calendarDate) {
+                        setSelectedCalendarDate(
+                          new Date(
+                            calendarDate.getFullYear(),
+                            calendarDate.getMonth(),
+                            day,
+                          ),
+                        );
+                      }
+                    }}
                     className={`w-4 h-4 mx-auto flex items-center justify-center rounded-full text-[9px] font-medium ${
                       isSelected
                         ? "bg-white text-black font-bold"
-                        : "text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+                        : "text-zinc-300 hover:bg-zinc-800"
                     }`}
                   >
                     {day}
-                  </span>
+                  </button>
                 );
               })}
             </div>
@@ -450,7 +602,11 @@ export default function WigggleUIPage() {
               Sunny
             </div>
             <div className="text-xs text-zinc-400 mt-1">
-              Tue Nov 22
+              {now?.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              }) ?? "---"}
             </div>
           </div>
 

@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --bg-main: #09090b;
@@ -11,13 +9,58 @@
 body {
   background-color: var(--bg-main);
   color: #ffffff;
-  /* สร้างพื้นหลังลายจุดแบบในภาพ */
   background-image: radial-gradient(#242428 1px, transparent 1px);
   background-size: 24px 24px;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* ซ่อน Scrollbar เพื่อความสวยงาม */
+[data-theme="light"] {
+  --bg-main: #f4f4f5;
+  --bg-card: #ffffff;
+  --border-card: #e4e4e7;
+  color: #18181b;
+  background-color: var(--bg-main);
+  background-image: radial-gradient(#d4d4d8 1px, transparent 1px);
+}
+
+[data-theme="light"] [class*="bg-[#111113]"] {
+  background-color: var(--bg-card);
+}
+
+[data-theme="light"] [class*="border-[#222225]"] {
+  border-color: var(--border-card);
+}
+
+[data-theme="light"] [class~="bg-[#18181b]"],
+[data-theme="light"] [class~="bg-zinc-800"],
+[data-theme="light"] [class~="bg-zinc-800/80"],
+[data-theme="light"] [class~="bg-zinc-900"] {
+  background-color: #e4e4e7;
+}
+
+[data-theme="light"] [class~="border-zinc-800"],
+[data-theme="light"] [class~="border-zinc-800/80"] {
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] [class~="text-white"] {
+  color: #18181b !important;
+}
+
+[data-theme="light"] [class~="text-zinc-200"] {
+  color: #3f3f46 !important;
+}
+
+[data-theme="light"] [class~="text-zinc-300"],
+[data-theme="light"] [class~="text-zinc-400"],
+[data-theme="light"] [class~="text-zinc-500"] {
+  color: #52525b !important;
+}
+
+[data-theme="light"] [class~="border-white"] {
+  border-color: #27272a;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
